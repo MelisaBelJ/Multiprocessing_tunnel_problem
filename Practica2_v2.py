@@ -1,5 +1,5 @@
-from time import sleep, process_time
-from multiprocessing import Value, Lock, Condition, Process
+from time import sleep, time
+from multiprocessing import Value, Lock, Condition, Process, Manager
 from enum import Enum
 import numpy as np
 import random
@@ -21,32 +21,34 @@ class Tipos(Enum):
         return t
 
 class Monitor():
-    def __init__(self):
+    def __init__(self, tMax = 5):
         self.lock = Lock() #Candado para modificar los valores del número dentro del túnel (del tipo que sea)
         self.cond = {tipo: Condition(self.lock) for tipo in Tipos} #Condición para entrar al túnel de cada tipo
-        self.num  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está dentro del túnel, Empieza en 0, está vacío
-        self.esperando  = {tipo: Value('i',0)         for tipo in Tipos}  #Número  en espera, Empieza en 0, está vacío        
-        self.tiempoT  = tipo: Value('i',0)   #Tiempo que lleva ocupado el Túnel, Empieza en 0, está vacío
-        self.tMax     = 20
+        self.num  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está dentro del túnel, Empieza en 0, está vacío      
+        self.tiempoT  = Value('d', time())   #Tiempo que lleva ocupado el Túnel, Empieza en 0, no hay nadie
+        self.ultEnPasar  = {tipo: Value('i',0)         for tipo in Tipos}  #1 el que ha sido el último en pasar, 0 el resto, Empieza en 0, no ha pasado nadie
+        self.tMax     = tMax #Ventana de tiempo en la que se deja pasar a los de un tipo desde que entra el primero (para evitar inanición)
     
     #Cuando llega al túnel, se espera a que los otros salgan del túnel (si es que hay alguno) y se añade uno al número de este tipo dentro
     #@post: self.num[nt].value = 0 para nt en tipo.no() (Todos los tipos que no son tipo)
     #       self.num[tipo].value > 0
+    #       self.ultEnPasar[nt].value = 0 para nt en tipo.no() (Todos los tipos que no son tipo)
+    #       self.ultEnPasar[tipo].value = 1
     def esperaEntrar(self, tipo: Tipos):
-        self.esperando[tipo].value += 1
         with self.lock: #Evita que el valor del número que hay dentro se modifique simultaneamente (y se necesita para esperar)
-            self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == 2 and (process_time()-self.tiempoT) < self.tMax)#Espera a que el valor dentro de los otros tipos sea 0 y a que tipo que está en el túnel lleve menos del tiempo máximo
+            self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == (len(Tipos)-1) and (self.ultEnPasar[tipo].value  == 0 or (time()-self.tiempoT.value) < self.tMax))#Espera a que el valor dentro de los otros tipos sea 0 y ,si es el tipo que está en el túnel, comprueba que lleve menos del tiempo máximo
             #Invariante: El número dentro del túnel de los otros tipos será 0
-            if self.num[tipo].value == 0:
-                self.tiempoT.value = process_time()
+            if self.ultEnPasar[tipo].value  == 0:
+                self.tiempoT.value = time()
+                for t in Tipos:
+                    self.ultEnPasar[t].value = (t == tipo)
             self.num[tipo].value += 1 #Añade 1 al número de este tipo en el túnel
-            self.esperando[tipo].value -= 1
 
     #Cuando termine de cruzar el tunel, se resta 1 al número de este tipo de los que hay dentro y se notifica al resto de tipos
     #@pre: self.num[tipo].value > 0
     def sale(self, tipo: Tipos): 
         with self.lock: #Evita que el valor del número que hay dentro se modifique simultaneamente (y se necesita para notificar)
-            self.num[tipo].value -= 1 #Resta 1 al número de este tipo en el túnel
+            self.num[tipo].value -= 1 #Resta 1 al número de este tipo en el túnel       
             for nt in tipo.no(): #Notifica al resto de tipos
                 self.cond[nt].notify_all()
 
@@ -77,7 +79,7 @@ def generaTipo(tipos: list, cantidad: int, tiempo: int, monitor: Monitor, t: lis
         p = Process(target=Vehiculo(tipos[num], pid[num], monitor, abs(s[i])).entrarTunel, args=()) #Creamos el procesos de pasar al tunel
         p.start()
         plst.append(p)
-        sleep(random.expovariate(1/tiempo)) #Esperamos antes de crear un nuevo vehículo
+        sleep(0 if i == (cantidad-1) else random.expovariate(1/tiempo)) #Esperamos antes de crear un nuevo vehículo
 
     for p in plst:
         p.join()
