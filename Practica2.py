@@ -27,6 +27,8 @@ class Monitor():
         self.num  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está dentro del túnel, Empieza en 0, está vacío
     
     #Cuando llega al túnel, se espera a que los otros salgan del túnel (si es que hay alguno) y se añade uno al número de este tipo dentro
+    #@post: self.num[nt].value = 0 para nt en tipo.no() (Todos los tipos que no son tipo)
+    #       self.num[tipo].value > 0
     def esperaEntrar(self, tipo: Tipos):
         with self.lock: #Evita que el valor del número que hay dentro se modifique simultaneamente (y se necesita para esperar)
             self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == 2) #Espera a que el valor dentro de los otros tipos sea 0
