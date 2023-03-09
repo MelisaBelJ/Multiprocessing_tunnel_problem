@@ -57,34 +57,26 @@ class Vehiculo():
         print(f"Saliendo {self.tipo.name} {self.pid}", flush = True)
         self.monitor.sale(self.tipo)
 
+#Genera aleatoriamente la cantidad dada de los tipos, a los que deja intentar entrar en el tunel con una separacion de variable exponencial tiempo, Estos tipos están en el túnel un tiempo condicionado por la distribución nomal dada por t = (media, desviación típica)
 def generaTipo(tipos: list, cantidad: int, tiempo: int, monitor: Monitor, t: list):    
     pid = [0] * len(tipos)
     plst = []
-    s = np.random.normal(t[0], t[1], cantidad)
+    s = np.random.normal(t[0], t[1], cantidad) #Sacamos las muestras que necesitamos de la distribución normal, para tener el tiempo que estará cada vehículo en el túnel
     for i in range(cantidad):
         num = random.randint(0, len(tipos)-1)
-        pid[num] += 1
-        p = Process(target=Vehiculo(tipos[num], pid[num], monitor, abs(s[i])).entrarTunel, args=())
+        pid[num] += 1 #Sumamos al contador del tipo que vamos a generar
+        p = Process(target=Vehiculo(tipos[num], pid[num], monitor, abs(s[i])).entrarTunel, args=()) #Creamos el procesos de pasar al tunel
         p.start()
         plst.append(p)
-        sleep(random.expovariate(1/tiempo))
+        sleep(random.expovariate(1/tiempo)) #Esperamos antes de crear un nuevo vehículo
 
     for p in plst:
         p.join()
-        
-def prueba():
-    N  = {Tipos.CocheA: 50, Tipos.CocheB: 50, Tipos.Peaton: 10} #10 coches en dir A, 10 coches en dir B, 20 peatones
-    monitor  = Monitor()
-    v = {Vehiculo(t, pid, monitor) for t in Tipos for pid in range(N[t])} #Crea los objetos vehículo que pasarán por el túnel, Se meten en un set para que no estén ordenados, no lleguen seguidos los de cada tipo
-    for aux in v: #Crea e inicia los procesos
-        p = Process(target = aux.entrarTunel, args=()) 
-        p.start()
-        sleep(1.5) #Se da algo de tiempo entre procesos para que no lleguen todos de golpe
-        
+            
 def main():
     monitor = Monitor()
-    gcars = Process(target=generaTipo, args=([Tipos.CocheA, Tipos.CocheB], 100, 0.5, monitor, Tipos.tiempo(Tipos.CocheA)))
-    gped = Process(target=generaTipo, args=([Tipos.Peaton], 10, 5, monitor, Tipos.tiempo(Tipos.Peaton)))
+    gcars = Process(target=generaTipo, args=([Tipos.CocheA, Tipos.CocheB], 100, 0.5, monitor, Tipos.tiempo(Tipos.CocheA))) #Creamos el proceso para generar los coches
+    gped = Process(target=generaTipo, args=([Tipos.Peaton], 10, 5, monitor, Tipos.tiempo(Tipos.Peaton))) #Creamos el proceso para generar los peatones
     gcars.start()
     gped.start()
     gcars.join()
