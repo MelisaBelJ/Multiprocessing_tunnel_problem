@@ -17,7 +17,7 @@ class Tipos(Enum):
         if tipo == Tipos.CocheA or tipo == Tipos.CocheB:
             t=  [1, 0.5] # normal 1s, 0.5s
         else:
-            t = [0, 10] # normal 1s, 0.5s
+            t = [30, 10] # normal 1s, 0.5s
         return t
 
 class Monitor():
