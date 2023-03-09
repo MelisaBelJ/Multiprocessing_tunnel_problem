@@ -4,7 +4,7 @@ Quieren entrar al túnel coches y peatones. Cuando entran coches, solo pueden pa
 
 De cara a la implementación esto se traduce en que los peatones se ven como un tipo, y los coches con su dirección como otro (3 tipos en total).
 
-Si se quisieran añadir más actores solo sería necesario modificar la enumeración con los tipos para que los incluyera y crearlos en el main.
+Si se quisieran añadir más actores solo sería necesario modificar la enumeración con los tipos para que los incluyera y crear los procesos en el main.
 
 ## Practica2_v1
 
