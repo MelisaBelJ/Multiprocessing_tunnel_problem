@@ -1,4 +1,4 @@
-from time import sleep
+from time import sleep, process_time
 from multiprocessing import Value, Lock, Condition, Process
 from enum import Enum
 import numpy as np
@@ -25,7 +25,9 @@ class Monitor():
         self.lock = Lock() #Candado para modificar los valores del número dentro del túnel (del tipo que sea)
         self.cond = {tipo: Condition(self.lock) for tipo in Tipos} #Condición para entrar al túnel de cada tipo
         self.num  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está dentro del túnel, Empieza en 0, está vacío
-        self.esperando  = {tipo: Value('i',0)         for tipo in Tipos}  #Número  en espera, Empieza en 0, está vacío
+        self.esperando  = {tipo: Value('i',0)         for tipo in Tipos}  #Número  en espera, Empieza en 0, está vacío        
+        self.tiempoT  = tipo: Value('i',0)   #Tiempo que lleva ocupado el Túnel, Empieza en 0, está vacío
+        self.tMax     = 20
     
     #Cuando llega al túnel, se espera a que los otros salgan del túnel (si es que hay alguno) y se añade uno al número de este tipo dentro
     #@post: self.num[nt].value = 0 para nt en tipo.no() (Todos los tipos que no son tipo)
@@ -33,8 +35,10 @@ class Monitor():
     def esperaEntrar(self, tipo: Tipos):
         self.esperando[tipo].value += 1
         with self.lock: #Evita que el valor del número que hay dentro se modifique simultaneamente (y se necesita para esperar)
-            self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == 2 and ([self.esperando[nt].value<3 for nt in tipo.no()].count(True) == 2 or self.esperando[tipo].value==max([self.esperando[nt].value for nt in Tipos])))#Espera a que el valor dentro de los otros tipos sea 0 y o no haya más de 3 de los otros esperando o haya más de 3 de este tipo esperando (esto último para evitar deadlocks)
+            self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == 2 and (process_time()-self.tiempoT) < self.tMax)#Espera a que el valor dentro de los otros tipos sea 0 y a que tipo que está en el túnel lleve menos del tiempo máximo
             #Invariante: El número dentro del túnel de los otros tipos será 0
+            if self.num[tipo].value == 0:
+                self.tiempoT.value = process_time()
             self.num[tipo].value += 1 #Añade 1 al número de este tipo en el túnel
             self.esperando[tipo].value -= 1
 
