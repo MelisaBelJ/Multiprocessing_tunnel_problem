@@ -1,6 +1,7 @@
 from time import sleep
 from multiprocessing import Value, Lock, Condition, Process
 from enum import Enum
+import numpy as np
 import random
 
 class Tipos(Enum):
@@ -11,6 +12,13 @@ class Tipos(Enum):
     #Devuelve Tipos\self, el complementario de self en Tipos
     def no(self):
         return [e for e in Tipos if e!=self]
+    
+    def tiempo(tipo):
+        if tipo == Tipos.CocheA or tipo == Tipos.CocheB:
+            t=  [1, 0.5] # normal 1s, 0.5s
+        else:
+            t = [0, 10] # normal 1s, 0.5s
+        return t
 
 class Monitor():
     def __init__(self):
@@ -34,32 +42,32 @@ class Monitor():
                 self.cond[nt].notify_all()
 
 class Vehiculo():
-  TIME_IN_BRIDGE_CARS = (1, 0.5) # normal 1s, 0.5s
-  TIME_IN_BRIDGE_PEDESTRGIAN = (30, 10) # normal 1s, 0.5s
-    def __init__(self, tipo: Tipos, pid: int, monitor: Monitor):
+    def __init__(self, tipo: Tipos, pid: int, monitor: Monitor, tiempo: int):
         self.tipo    = tipo
         self.pid     = pid
         self.monitor = monitor
+        self.tiempo  = tiempo
 
     #Proceso para esperar a poder entrar en el túnel y pasar
     def entrarTunel(self):
         print(f"{self.tipo.name} {self.pid} esperando", flush = True)
         self.monitor.esperaEntrar(self.tipo)
         print(f"Entrando {self.tipo.name} {self.pid}", flush = True)
-        sleep(2**int(self.tipo == Tipos.Peaton))
+        sleep(self.tiempo)
         print(f"Saliendo {self.tipo.name} {self.pid}", flush = True)
         self.monitor.sale(self.tipo)
 
-def generaTipo(tipos: list, cantidad: int, tiempo: int, monitor: Monitor):    
-    pid = [None] * len(tipos)
+def generaTipo(tipos: list, cantidad: int, tiempo: int, monitor: Monitor, t: list):    
+    pid = [0] * len(tipos)
     plst = []
-    for _ in range(cantidad):
+    s = np.random.normal(t[0], t[1], cantidad)
+    for i in range(cantidad):
         num = random.randint(0, len(tipos)-1)
         pid[num] += 1
-        p = Process(target=Vehiculo(tipos[num], pid[num], monitor).entrarTunel, args=())
+        p = Process(target=Vehiculo(tipos[num], pid[num], monitor, abs(s[i])).entrarTunel, args=())
         p.start()
         plst.append(p)
-        time.sleep(random.expovariate(1/tiempo))
+        sleep(random.expovariate(1/tiempo))
 
     for p in plst:
         p.join()
@@ -73,10 +81,10 @@ def prueba():
         p.start()
         sleep(1.5) #Se da algo de tiempo entre procesos para que no lleguen todos de golpe
         
-def main()
+def main():
     monitor = Monitor()
-    gcars = Process(target=generaTipo([Tipos.CocheA, Tipo.CocheB, 100, 0.5, monitor), args=(monitor,))
-    gped = Process(target=generaTipo([Tipos.Peaton], 10, 5, monitor), args=(monitor,))
+    gcars = Process(target=generaTipo, args=([Tipos.CocheA, Tipos.CocheB], 100, 0.5, monitor, Tipos.tiempo(Tipos.CocheA)))
+    gped = Process(target=generaTipo, args=([Tipos.Peaton], 10, 5, monitor, Tipos.tiempo(Tipos.Peaton)))
     gcars.start()
     gped.start()
     gcars.join()
