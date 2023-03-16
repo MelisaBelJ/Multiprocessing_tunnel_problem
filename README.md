@@ -1,4 +1,4 @@
-# Practica2
+# Practica 2
 
 Quieren entrar al túnel coches y peatones. Cuando entran coches, solo pueden pasar en una dirección. Sin embargo, cuando pasan los peatones pueden pasar en ambos sentidos.
 
