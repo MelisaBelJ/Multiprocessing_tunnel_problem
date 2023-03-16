@@ -24,7 +24,8 @@ class Monitor():
     def __init__(self, tMax = 5):
         self.lock = Lock() #Candado para modificar los valores del número dentro del túnel (del tipo que sea)
         self.cond = {tipo: Condition(self.lock) for tipo in Tipos} #Condición para entrar al túnel de cada tipo
-        self.num  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está dentro del túnel, Empieza en 0, está vacío      
+        self.num  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está dentro del túnel, Empieza en 0, está vacío             
+        self.numEspera  = {tipo: Value('i',0)         for tipo in Tipos} #Número de cada tipo que está esperando, Empieza en 0, está vacío      
         self.tiempoT  = Value('d', time())   #Tiempo que lleva ocupado el Túnel, Empieza en 0, no hay nadie
         self.ultEnPasar  = {tipo: Value('i',0)         for tipo in Tipos}  #1 el que ha sido el último en pasar, 0 el resto, Empieza en 0, no ha pasado nadie
         self.tMax     = tMax #Ventana de tiempo en la que se deja pasar a los de un tipo desde que entra el primero (para evitar inanición)
@@ -36,9 +37,11 @@ class Monitor():
     #       self.ultEnPasar[tipo].value = 1
     def esperaEntrar(self, tipo: Tipos):
         with self.lock: #Evita que el valor del número que hay dentro se modifique simultaneamente (y se necesita para esperar)
-            self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == (len(Tipos)-1) and (self.ultEnPasar[tipo].value  == 0 or (time()-self.tiempoT.value) < self.tMax))#Espera a que el valor dentro de los otros tipos sea 0 y ,si es el tipo que está en el túnel, comprueba que lleve menos del tiempo máximo
+            self.numEspera[tipo].value += 1    
+            self.cond[tipo].wait_for(lambda: [self.num[nt].value for nt in tipo.no()].count(0) == (len(Tipos)-1) and (self.ultEnPasar[tipo].value  == 0 or (time()-self.tiempoT.value) < self.tMax or [self.numEspera[nt].value for nt in tipo.no()].count(0) == (len(Tipos)-1)))#Espera a que el valor dentro de los otros tipos sea 0 y ,si es el tipo que está en el túnel, comprueba que lleve menos del tiempo máximo
             #Invariante: El número dentro del túnel de los otros tipos será 0
-            if self.ultEnPasar[tipo].value  == 0:
+            self.numEspera[tipo].value -= 1  
+            if self.ultEnPasar[tipo].value  == 0 or [self.numEspera[nt].value for nt in tipo.no()].count(0) == (len(Tipos)-1):
                 self.tiempoT.value = time()
                 for t in Tipos:
                     self.ultEnPasar[t].value = (t == tipo)
