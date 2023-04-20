@@ -6,6 +6,10 @@ De cara a la implementación esto se traduce en que los peatones se ven como un 
 
 Si se quisieran añadir más actores solo sería necesario modificar la enumeración con los tipos para que los incluyera y crear los procesos en el main.
 
+Para simular la entrada de un vehículo al túnel se crea un objeto Vehiculo con si tipo, id, el objeto Monitor que comparten todos los que entran a un túnel y el tiempo que tarda en pasar el túnel. La clase Vehículo tienen una única función: entrarTunel, que simula la entrada al túnel del vehículo, delegando en el monitor la gestión de la entrada y la salida.
+
+El monitor cuenta con una condición para cada tipo de vehículo, que controla si se les permite o no pasar, y un valor entero con la cantidad de cada tipo en el túnel. Una explicación más en detalle del funcionamiento de cada función en cada versión, de los invariantes y del porqué no se producen deadlocks se puede encontrar en el pdf: _Practica2_Funcionamiento.pdf_
+
 ## Practica2_v1
 
 Versión básica, asegura que no hay deadlock, pero no evita la inanición. Como tardan mucho más en pasar los peatones, una vez entra uno pasan todos, y los coches se quedan esperando.
